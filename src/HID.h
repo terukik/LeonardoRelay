@@ -88,6 +88,22 @@ public:
   const uint16_t length;
 };
 
+class HIDReportReadHandler {
+public:
+  HIDReportReadHandler *next = NULL;
+  HIDReportReadHandler(bool (*h)(uint8_t reportID, uint16_t length)) : handler(h) { }
+
+  bool (*handler)(uint8_t reportID, uint16_t length);
+};
+
+class HIDReportWriteHandler {
+public:
+  HIDReportWriteHandler *next = NULL;
+  HIDReportWriteHandler(bool (*h)(uint8_t reportID, uint16_t length)) : handler(h) { }
+
+  bool (*handler)(uint8_t reportID, uint16_t length);
+};
+
 class HID_ : public PluggableUSBModule
 {
 public:
@@ -95,6 +111,8 @@ public:
   int begin(void);
   int SendReport(uint8_t id, const void* data, int len);
   void AppendDescriptor(HIDSubDescriptor* node);
+  void AppendReportReadHandler(HIDReportReadHandler* handler);
+  void AppendReportWriteHandler(HIDReportWriteHandler* handler);
 
 protected:
   // Implementation of the PluggableUSBModule
@@ -107,6 +125,8 @@ private:
   uint8_t epType[1];
 
   HIDSubDescriptor* rootNode;
+  HIDReportReadHandler* readHandler;
+  HIDReportWriteHandler* writeHandler;
   uint16_t descriptorSize;
 
   uint8_t protocol;

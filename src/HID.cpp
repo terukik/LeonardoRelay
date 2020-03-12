@@ -86,6 +86,32 @@ void HID_::AppendDescriptor(HIDSubDescriptor *node)
 	descriptorSize += node->length;
 }
 
+void HID_::AppendReportReadHandler(HIDReportReadHandler *handler)
+{
+	if (!readHandler) {
+		readHandler = handler;
+	} else {
+		HIDReportReadHandler *current = readHandler;
+		while (current->next) {
+			current = current->next;
+		}
+		current->next = handler;
+	}
+}
+
+void HID_::AppendReportWriteHandler(HIDReportWriteHandler *handler)
+{
+	if (!writeHandler) {
+		writeHandler = handler;
+	} else {
+		HIDReportWriteHandler *current = writeHandler;
+		while (current->next) {
+			current = current->next;
+		}
+		current->next = handler;
+	}
+}
+
 int HID_::SendReport(uint8_t id, const void* data, int len)
 {
 	auto ret = USB_Send(pluggedEndpoint, &id, 1);
@@ -133,13 +159,17 @@ bool HID_::setup(USBSetup& setup)
 		}
 		if (request == HID_SET_REPORT)
 		{
-			//uint8_t reportID = setup.wValueL;
-			//uint16_t length = setup.wLength;
-			//uint8_t data[length];
-			// Make sure to not read more data than USB_EP_SIZE.
-			// You can read multiple times through a loop.
-			// The first byte (may!) contain the reportID on a multreport.
-			//USB_RecvControl(data, length);
+			uint8_t reportID = setup.wValueL;
+			uint16_t length = setup.wLength;
+			if (this->writeHandler) {
+				HIDReportWriteHandler *current = this->writeHandler;
+				while (current) {
+					if (current->handler(reportID, length)) {
+						return true;
+					}
+					current = current->next;
+				}
+			}
 		}
 	}
 
