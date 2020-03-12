@@ -30,11 +30,43 @@ static const uint8_t _hidReportDescriptor[] PROGMEM = {
     0xC0                           // END_COLLECTION
 };
 
+static unsigned int _relays = 0;
+static bool _hidReportWriteHandler(uint8_t reportID, uint16_t length)
+{
+	if (length == REPORT_SIZE) {
+		uint8_t data[length];
+		if (length == USB_RecvControl(data, length)) {
+			unsigned int relays = HIDRelay.get();
+			switch (data[0]) {
+			case CMD_ALL_ON:
+				relays = ~0u;
+				break;
+			case CMD_ALL_OFF:
+				relays = 0u;
+				break;
+			case CMD_ON:
+				relays = relays | (1u << data[1]);
+				break;
+			case CMD_OFF:
+				relays = relays & ~(1u << data[1]);
+				break;
+			case CMD_SET_SERIAL:
+				break;
+			}
+			HIDRelay.set(relays);
+			return true;
+		}
+	}
+	return false;
+}
+
 HIDRelay_::HIDRelay_(void):
 	_relays(0)
 {
 	static HIDSubDescriptor node(_hidReportDescriptor, sizeof(_hidReportDescriptor));
+	static HIDReportWriteHandler handler(_hidReportWriteHandler);
 	HID().AppendDescriptor(&node);
+	HID().AppendReportWriteHandler(&handler);
 }
 
 void HIDRelay_::begin(void)
@@ -45,36 +77,16 @@ void HIDRelay_::end(void)
 {
 }
 
-unsigned int HIDRelay_::poll(void)
+unsigned int HIDRelay_::get()
 {
-	unsigned int relays = this->_relays;
-	if (USB_Available(HID_RX) > 0) {
-		uint8_t id;
-		uint8_t report[8];
-		USB_Recv(HID_RX, &id, sizeof(id));
-		USB_Recv(HID_RX, report, sizeof(report));
-		switch (report[0]) {
-		case CMD_ALL_ON:
-			relays = ~0u;
-			break;
-		case CMD_ALL_OFF:
-			relays = 0u;
-			break;
-		case CMD_ON:
-			relays = relays | (1u << report[1]);
-			break;
-		case CMD_OFF:
-			relays = relays & ~(1u << report[1]);
-			break;
-		case CMD_SET_SERIAL:
-			break;
-		}
-		this->_relays = relays;
-	}
-	return relays;
+	return this->_relays;
+}
+
+void HIDRelay_::set(unsigned int relays)
+{
+	this->_relays = relays;
 }
 
 HIDRelay_ HIDRelay;
 
 #endif
-

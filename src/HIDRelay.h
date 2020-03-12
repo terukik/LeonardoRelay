@@ -44,7 +44,8 @@ public:
   HIDRelay_(void);
   void begin();
   void end();
-  unsigned int poll();
+  unsigned int get();
+  void set(unsigned int relays);
 };
 extern HIDRelay_ HIDRelay;
 
